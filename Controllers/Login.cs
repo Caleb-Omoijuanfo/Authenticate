@@ -11,6 +11,7 @@ using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using System.Collections;
 
 namespace Authenticate.Controllers
 {
@@ -69,7 +70,7 @@ namespace Authenticate.Controllers
         }
 
         [AllowAnonymous]
-        [HttpPost]
+        [HttpPost("Authenticate")]
         public IActionResult Authenticate(UserModel userDetails)
         {
             var user = this.ValidateUser(userDetails);
@@ -81,6 +82,29 @@ namespace Authenticate.Controllers
                 token
             });
 
+        }
+
+        [HttpGet("User")]
+        public ActionResult<IEnumerable> GetUser ()
+        {
+            try
+            {
+                if (User.Identity.IsAuthenticated)
+                {
+                    return users;
+                } 
+                else
+                {
+                    return BadRequest(new
+                    {
+                        Message = "Wrong/Expired Token"
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }           
         }
     }
 }
