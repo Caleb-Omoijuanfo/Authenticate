@@ -7,16 +7,20 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Authenticate.Model;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
 
 namespace Authenticate.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    public class Login : ControllerBase
+    public class LoginController : ControllerBase
     {
         private IConfiguration _config;
 
-        public Login(IConfiguration config)
+        public LoginController(IConfiguration config)
         {
             _config = config;
         }
@@ -26,14 +30,13 @@ namespace Authenticate.Controllers
             new UserModel
             {
                 Username = "caleb",
-                Password = "africana"
+                Email = "c.omoijuanfo@gmail.com"
             }
         };
 
-
-        private UserModel ValidateUser (UserModel loginDetails)
+        private UserModel ValidateUser(UserModel loginDetails)
         {
-            var result = users.SingleOrDefault(x => x.Username == loginDetails.Username && x.Password == loginDetails.Password);
+            var result = users.SingleOrDefault(x => x.Username == loginDetails.Username && x.Email == loginDetails.Email);
 
             if (result != null)
             {
@@ -42,20 +45,42 @@ namespace Authenticate.Controllers
             else
             {
                 return null;
-            }            
-        }
+            }
+        }       
 
-        private string GenerateWebToken()
+        private string GenerateWebToken(UserModel user)
         {
-            return "some String";
+            var tokenHandler = new JwtSecurityTokenHandler();
+            var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:Key"]));
+            var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
+
+            var claims = new[] {
+                new Claim(ClaimTypes.Name, user.Username),
+                new Claim(ClaimTypes.Email, user.Email)
+               };
+
+            var token = new JwtSecurityToken(_config["Jwt:Issuer"],
+                _config["Jwt:Issuer"],
+                claims,
+                expires: DateTime.Now.AddSeconds(120),
+                signingCredentials: credentials);
+
+            return tokenHandler.WriteToken(token);
         }
 
         [AllowAnonymous]
         [HttpPost]
-        public IActionResult Login()
+        public IActionResult Authenticate(UserModel userDetails)
         {
-            
-        }
+            var user = this.ValidateUser(userDetails);
 
+            var token = this.GenerateWebToken(user);
+
+            return Ok(new
+            {
+                token
+            });
+
+        }
     }
 }
